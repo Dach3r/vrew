@@ -46,12 +46,13 @@ jobs:
 
             1. Download `vrew.zip` and unzip it
             2. Move `vrew.app` to your `/Applications` folder
-            3. Run once in Terminal to clear the Gatekeeper warning:
+            3. Run this once in Terminal (required because the app is not notarized):
             ```bash
             xattr -cr /Applications/vrew.app
             ```
             4. Open `vrew.app` — the 🍺 icon appears in your menu bar
 
-            > Requires macOS 13 Ventura or later and Homebrew installed.
+            > Requires macOS 13 Ventura or later and [Homebrew](https://brew.sh) installed.
+            > If macOS says "damaged and can't be opened", the `xattr -cr` command above fixes it.
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
