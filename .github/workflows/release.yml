@@ -1,0 +1,54 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  build:
+    runs-on: macos-15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode_16.app
+
+      - name: Build archive
+        run: |
+          xcodebuild archive \
+            -project vrew.xcodeproj \
+            -scheme vrew \
+            -configuration Release \
+            -archivePath build/vrew.xcarchive \
+            CODE_SIGN_IDENTITY="-" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO
+
+      - name: Package .app as zip
+        run: |
+          APP=$(find build/vrew.xcarchive -name "*.app" | head -1)
+          cp -R "$APP" build/vrew.app
+          cd build
+          ditto -c -k --sequesterRsrc --keepParent vrew.app vrew.zip
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: build/vrew.zip
+          body: |
+            ## Install
+
+            1. Download `vrew.zip` and unzip it
+            2. Move `vrew.app` to your `/Applications` folder
+            3. Run once in Terminal to clear the Gatekeeper warning:
+            ```bash
+            xattr -cr /Applications/vrew.app
+            ```
+            4. Open `vrew.app` — the 🍺 icon appears in your menu bar
+
+            > Requires macOS 13 Ventura or later and Homebrew installed.
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
