@@ -66,12 +66,11 @@ final class BrewServiceManager: ObservableObject {
     }
 
     private func runBrewCommand(args: [String]) async -> ActionResult {
-        await withCheckedContinuation { continuation in
-            DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-                guard let self else { return }
-
+        let resolvedBrewPath = brewPath
+        return await withCheckedContinuation { continuation in
+            DispatchQueue.global(qos: .userInitiated).async {
                 let process = Process()
-                process.executableURL = URL(fileURLWithPath: self.brewPath)
+                process.executableURL = URL(fileURLWithPath: resolvedBrewPath)
                 process.arguments = args
 
                 var env = ProcessInfo.processInfo.environment
@@ -108,7 +107,7 @@ final class BrewServiceManager: ObservableObject {
     private func parseServices(from output: String) -> [BrewService] {
         let lines = output.components(separatedBy: "\n")
         return lines
-            .dropFirst() // skip header row
+            .dropFirst()
             .compactMap { BrewService(rawLine: $0) }
             .sorted {
                 if $0.status == $1.status { return $0.name < $1.name }

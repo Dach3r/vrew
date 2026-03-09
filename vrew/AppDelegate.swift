@@ -35,6 +35,7 @@ final class VibrancyViewController: NSViewController {
     }
 }
 
+@MainActor
 class AppDelegate: NSObject, NSApplicationDelegate {
 
     private var statusItem: NSStatusItem!
