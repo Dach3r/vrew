@@ -3,6 +3,7 @@ import SwiftUI
 struct MenuBarView: View {
 
     @ObservedObject var serviceManager: BrewServiceManager
+    let onQuit: () -> Void
 
     var body: some View {
         VStack(spacing: 0) {
@@ -26,6 +27,12 @@ struct MenuBarView: View {
             } else if let error = serviceManager.lastError {
                 feedbackBanner(message: error, isError: true)
             }
+
+            Divider()
+                .opacity(0.3)
+                .padding(.horizontal, 12)
+
+            footerView
         }
         .frame(width: 320)
         .background(.clear)
@@ -140,6 +147,23 @@ struct MenuBarView: View {
         .padding(.vertical, 8)
         .background(isError ? Color.orange.opacity(0.08) : Color.green.opacity(0.08))
     }
+
+    private var footerView: some View {
+        HStack {
+            Spacer()
+
+            Button(action: onQuit) {
+                Label("Quit", systemImage: "xmark.circle")
+                    .font(.system(size: 12, weight: .medium))
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(.secondary)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+            .contentShape(Rectangle())
+            .help("Quit Vrew")
+        }
+    }
 }
 
 #Preview {
@@ -154,6 +178,6 @@ struct MenuBarView: View {
                 BrewService(name: "nginx",         status: .error),
             ]
             return m
-        }())
+        }(), onQuit: {})
     }
 }

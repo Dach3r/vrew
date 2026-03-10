@@ -4,9 +4,11 @@ import SwiftUI
 final class VibrancyViewController: NSViewController {
 
     private let serviceManager: BrewServiceManager
+    private let onQuit: () -> Void
 
-    init(serviceManager: BrewServiceManager) {
+    init(serviceManager: BrewServiceManager, onQuit: @escaping () -> Void) {
         self.serviceManager = serviceManager
+        self.onQuit = onQuit
         super.init(nibName: nil, bundle: nil)
     }
     required init?(coder: NSCoder) { fatalError() }
@@ -18,7 +20,12 @@ final class VibrancyViewController: NSViewController {
         effect.state = .active
         self.view = effect
 
-        let hosting = NSHostingController(rootView: MenuBarView(serviceManager: serviceManager))
+        let hosting = NSHostingController(
+            rootView: MenuBarView(
+                serviceManager: serviceManager,
+                onQuit: onQuit
+            )
+        )
         hosting.view.translatesAutoresizingMaskIntoConstraints = false
         hosting.view.wantsLayer = true
         hosting.view.layer?.backgroundColor = .clear
@@ -63,7 +70,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         popover.contentSize = NSSize(width: 320, height: 400)
         popover.behavior = .transient
         popover.animates = true
-        popover.contentViewController = VibrancyViewController(serviceManager: serviceManager)
+        popover.contentViewController = VibrancyViewController(
+            serviceManager: serviceManager,
+            onQuit: { [weak self] in self?.quitApplication() }
+        )
     }
 
     @objc private func togglePopover() {
@@ -75,5 +85,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
             popover.contentViewController?.view.window?.makeKey()
         }
+    }
+
+    private func quitApplication() {
+        popover.performClose(nil)
+        NSApp.terminate(nil)
     }
 }
