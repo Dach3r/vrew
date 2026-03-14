@@ -1,9 +1,37 @@
 import SwiftUI
 
+private enum ServiceFilter: String, CaseIterable {
+    case all      = "All"
+    case running  = "Running"
+    case stopped  = "Stopped"
+}
+
 struct MenuBarView: View {
 
     @ObservedObject var serviceManager: BrewServiceManager
     let onQuit: () -> Void
+
+    @State private var searchText: String = ""
+    @State private var selectedTab: ServiceFilter = .all
+
+    private var filteredServices: [BrewService] {
+        let byTab: [BrewService]
+        switch selectedTab {
+        case .all:     byTab = serviceManager.services
+        case .running: byTab = serviceManager.services.filter { $0.status == .started }
+        case .stopped: byTab = serviceManager.services.filter { $0.status != .started }
+        }
+        if searchText.isEmpty { return byTab }
+        return byTab.filter { $0.name.localizedCaseInsensitiveContains(searchText) }
+    }
+
+    private func count(for tab: ServiceFilter) -> Int {
+        switch tab {
+        case .all:     return serviceManager.services.count
+        case .running: return serviceManager.services.filter { $0.status == .started }.count
+        case .stopped: return serviceManager.services.filter { $0.status != .started }.count
+        }
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -14,13 +42,21 @@ struct MenuBarView: View {
                 .opacity(0.3)
                 .padding(.horizontal, 12)
 
+            if !serviceManager.services.isEmpty {
+                filterBar
+            }
+
             if serviceManager.isLoading && serviceManager.services.isEmpty {
                 loadingView
             } else if serviceManager.services.isEmpty {
                 emptyView
+            } else if filteredServices.isEmpty {
+                noMatchesView
             } else {
                 serviceListView
             }
+
+            Spacer(minLength: 0)
 
             if let feedback = serviceManager.actionFeedback {
                 feedbackBanner(message: feedback, isError: false)
@@ -34,7 +70,7 @@ struct MenuBarView: View {
 
             footerView
         }
-        .frame(width: 320)
+        .frame(width: 320, height: 500)
         .background(.clear)
         .onAppear { serviceManager.refresh() }
     }
@@ -50,17 +86,6 @@ struct MenuBarView: View {
                 .foregroundStyle(.primary)
 
             Spacer()
-
-            let runningCount = serviceManager.services.filter { $0.status == .started }.count
-            if runningCount > 0 {
-                Text("\(runningCount) running")
-                    .font(.system(size: 11, weight: .medium))
-                    .padding(.horizontal, 7)
-                    .padding(.vertical, 3)
-                    .background(.green.opacity(0.18))
-                    .foregroundStyle(.green)
-                    .clipShape(Capsule())
-            }
 
             Button {
                 serviceManager.refresh()
@@ -87,12 +112,50 @@ struct MenuBarView: View {
         .padding(.vertical, 10)
     }
 
+    private var filterBar: some View {
+        VStack(spacing: 8) {
+            HStack(spacing: 6) {
+                Image(systemName: "magnifyingglass")
+                    .font(.system(size: 12))
+                    .foregroundStyle(.tertiary)
+                TextField("Filter services…", text: $searchText)
+                    .textFieldStyle(.plain)
+                    .font(.system(size: 12))
+                if !searchText.isEmpty {
+                    Button {
+                        searchText = ""
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 11))
+                            .foregroundStyle(.tertiary)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 5)
+            .background(.primary.opacity(0.04))
+            .clipShape(RoundedRectangle(cornerRadius: 7))
+
+            Picker("Filter", selection: $selectedTab) {
+                ForEach(ServiceFilter.allCases, id: \.self) { tab in
+                    Text("\(tab.rawValue) (\(count(for: tab)))")
+                        .tag(tab)
+                }
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 8)
+    }
+
     private var serviceListView: some View {
         ScrollView(.vertical, showsIndicators: false) {
             LazyVStack(spacing: 0) {
-                ForEach(serviceManager.services) { service in
+                ForEach(filteredServices) { service in
                     ServiceRowView(service: service, serviceManager: serviceManager)
-                    if service != serviceManager.services.last {
+                    if service != filteredServices.last {
                         Divider()
                             .opacity(0.25)
                             .padding(.leading, 42)
@@ -101,7 +164,7 @@ struct MenuBarView: View {
             }
             .padding(.vertical, 4)
         }
-        .frame(maxHeight: 340)
+        .layoutPriority(1)
     }
 
     private var loadingView: some View {
@@ -132,6 +195,19 @@ struct MenuBarView: View {
         .frame(maxWidth: .infinity)
     }
 
+    private var noMatchesView: some View {
+        VStack(spacing: 8) {
+            Image(systemName: "magnifyingglass")
+                .font(.largeTitle)
+                .foregroundStyle(.tertiary)
+            Text("No matching services")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+        }
+        .frame(height: 80)
+        .frame(maxWidth: .infinity)
+    }
+
     private func feedbackBanner(message: String, isError: Bool) -> some View {
         HStack(spacing: 6) {
             Image(systemName: isError ? "exclamationmark.triangle.fill" : "checkmark.circle.fill")
@@ -148,11 +224,15 @@ struct MenuBarView: View {
         .background(isError ? Color.orange.opacity(0.08) : Color.green.opacity(0.08))
     }
 
+    @State private var showQuitConfirmation = false
+
     private var footerView: some View {
         HStack {
             Spacer()
 
-            Button(action: onQuit) {
+            Button {
+                showQuitConfirmation = true
+            } label: {
                 Label("Quit", systemImage: "xmark.circle")
                     .font(.system(size: 12, weight: .medium))
             }
@@ -162,6 +242,12 @@ struct MenuBarView: View {
             .padding(.vertical, 10)
             .contentShape(Rectangle())
             .help("Quit Vrew")
+            .alert("Quit Vrew?", isPresented: $showQuitConfirmation) {
+                Button("Cancel", role: .cancel) { }
+                Button("Quit", role: .destructive, action: onQuit)
+            } message: {
+                Text("Are you sure you want to quit Vrew?")
+            }
         }
     }
 }
