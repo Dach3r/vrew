@@ -1,6 +1,6 @@
 # 🍺 Vrew
 
-<img width="405" height="220" alt="image" src="https://github.com/user-attachments/assets/1e5233ef-720b-4293-82a4-19021c4cf891" />
+<img src="./running.png" alt="running" width="260"/>
 
 A native macOS menu bar app for managing Homebrew services.
 
